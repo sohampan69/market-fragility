@@ -1,0 +1,14 @@
+[theme]
+base="dark"
+primaryColor="#00FF41"
+font="monospace"
+
+[server]
+headless = true
+runOnSave = true
+enableCORS = false
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = true
+sidebarState = "expanded"
