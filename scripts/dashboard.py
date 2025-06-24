@@ -81,6 +81,38 @@ if st.button("Run Analysis"):
             rs = avg_gain / avg_loss
             df['RSI'] = 100 - (100 / (1 + rs))
 
+            # ─────────────────────────────────────────────
+            # SIGNAL GENERATION LOGIC
+            # ─────────────────────────────────────────────
+            df['signal'] = 'HOLD'  # Default
+
+            # Generate buy/sell signals
+            for i in range(1, len(df)):
+                if df['RSI'].iloc[i] < 30 and df['Close'].iloc[i] > df['EMA'].iloc[i] and df['Close'].iloc[i - 1] < \
+                        df['EMA'].iloc[i - 1]:
+                    df['signal'].iloc[i] = 'BUY'
+                elif df['RSI'].iloc[i] > 70 and df['Close'].iloc[i] < df['EMA'].iloc[i] and df['Close'].iloc[i - 1] > \
+                        df['EMA'].iloc[i - 1]:
+                    df['signal'].iloc[i] = 'SELL'
+
+            # ─────────────────────────────────────────────
+            # SIGNAL SUMMARY MESSAGES
+            # ─────────────────────────────────────────────
+
+            # Count non-HOLD signals
+            num_signals = df[df['signal'] != 'HOLD'].shape[0]
+
+            # Display latest signal
+            last_signal = df['signal'].iloc[-1]
+            st.info(f"📈 **Latest Signal:** `{last_signal}` as of {df.index[-1].strftime('%d-%b-%Y')}")
+
+            # If no actionable signals, show hold warning
+            if num_signals == 0:
+                st.warning(
+                    "🟡 No BUY or SELL signals were generated in the selected period.\n\nMarket might be calm, trending, or not volatile enough.\n\n**Suggested Action: HOLD or adjust strategy parameters.**")
+            else:
+                st.success(f"✅ {num_signals} signals generated. Scroll down to view them on the chart.")
+
             # ───────────────────────────────────────
             # PLOTLY 3-SUBPLOT CHART
             # ───────────────────────────────────────
@@ -96,6 +128,25 @@ if st.button("Run Analysis"):
             fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name="Close", line=dict(color='white')), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['SMA'], name=f"SMA-{sma_ema_window}", line=dict(color='orange')), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['EMA'], name=f"EMA-{sma_ema_window}", line=dict(color='violet')), row=1, col=1)
+            # BUY markers
+            buy_signals = df[df['signal'] == 'BUY']
+            fig.add_trace(go.Scatter(
+                x=buy_signals.index,
+                y=buy_signals['Close'],
+                mode='markers',
+                name='BUY Signal',
+                marker=dict(color='green', size=10, symbol='triangle-up')
+            ), row=1, col=1)
+
+            # SELL markers
+            sell_signals = df[df['signal'] == 'SELL']
+            fig.add_trace(go.Scatter(
+                x=sell_signals.index,
+                y=sell_signals['Close'],
+                mode='markers',
+                name='SELL Signal',
+                marker=dict(color='red', size=10, symbol='triangle-down')
+            ), row=1, col=1)
 
             # Row 2: Volatility vs Shock Volatility
             fig.add_trace(go.Scatter(x=df.index, y=df['volatility'], name="Volatility", line=dict(color='yellow')), row=2, col=1)
@@ -114,6 +165,9 @@ if st.button("Run Analysis"):
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+            st.subheader("📋 Trade Signal Summary")
+            st.dataframe(df[df['signal'] != 'HOLD'][['Close', 'RSI', 'EMA', 'signal']].tail(10))
 
             # ───────────────────────────────────────
             # DOWNLOAD CSV
