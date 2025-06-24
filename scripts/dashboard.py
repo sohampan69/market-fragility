@@ -49,12 +49,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='color:#00FF41;'>💻 QUANT TERMINAL - Fragility + Indicators</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color:#00FF41;'>Welcome to the TERMINAL</h1>", unsafe_allow_html=True)
 
 # ---- INPUT SECTION (SIDEBAR) ----
-st.sidebar.title("📊 Terminal Controls")
-symbol = st.sidebar.text_input("Symbol (e.g., RELIANCE.BSE)", "RELIANCE.BSE")
-api_key = st.sidebar.text_input("Alpha Vantage API Key", type="password")
+st.sidebar.title("Terminal Controls")
+symbol = st.sidebar.text_input("Symbol (e.g., RELIANCE.BSE)")
+api_key = '5GOMSQ2O4I9S6YIL'
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2020-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.to_datetime("today"))
 vol_window = st.sidebar.slider("Volatility Window (days)", 5, 30, 14)
@@ -95,7 +95,7 @@ if st.sidebar.button("Run Analysis"):
         df = fetch_data(symbol, api_key)
 
         if df is None:
-            st.error("❌ API failed. Check symbol or key.")
+            st.error("API failed. Check symbol or key.")
         else:
             df = df[(df.index >= pd.to_datetime(start_date)) & (df.index <= pd.to_datetime(end_date))]
 
