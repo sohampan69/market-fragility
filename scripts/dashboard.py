@@ -104,3 +104,15 @@ if st.button("Run Analysis"):
             )
 
             st.plotly
+
+# Convert DataFrame to in-memory CSV
+csv_buffer = io.StringIO()
+df.to_csv(csv_buffer)
+
+# Offer CSV as a download
+st.download_button(
+    label="📥 Download CSV Data",
+    data=csv_buffer.getvalue(),
+    file_name=f"fragility_{symbol.replace('.', '_')}.csv",
+    mime="text/csv"
+)
