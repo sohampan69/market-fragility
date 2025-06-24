@@ -4,6 +4,7 @@ import numpy as np
 import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import io
 
 # ─────────────────────────────────────────────
 # STREAMLIT CONFIG
@@ -99,20 +100,19 @@ if st.button("Run Analysis"):
                 height=800,
                 template='plotly_dark',
                 showlegend=True,
-                title_text=f"📈 Market Dashboard for {symbol}",
+                title_text=f"Market Dashboard for {symbol}",
                 xaxis_rangeslider_visible=False
             )
 
-            st.plotly
+            # Display chart
+            st.plotly_chart(fig, use_container_width=True)
 
-# Convert DataFrame to in-memory CSV
-csv_buffer = io.StringIO()
-df.to_csv(csv_buffer)
-
-# Offer CSV as a download
-st.download_button(
-    label="📥 Download CSV Data",
-    data=csv_buffer.getvalue(),
-    file_name=f"fragility_{symbol.replace('.', '_')}.csv",
-    mime="text/csv"
-)
+            # CSV DOWNLOAD BUTTON
+            csv_buffer = io.StringIO()
+            df.to_csv(csv_buffer)
+            st.download_button(
+                label="📥 Download CSV Data",
+                data=csv_buffer.getvalue(),
+                file_name=f"fragility_{symbol.replace('.', '_')}.csv",
+                mime="text/csv"
+            )
