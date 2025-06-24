@@ -10,7 +10,7 @@ import io
 # STREAMLIT CONFIG
 # ─────────────────────────────────────────────
 st.set_page_config(layout="wide", page_title="Quant Terminal")
-st.title("Welcome to the Terminal")
+st.title("Welcome to the Terminal..")
 
 # Sidebar inputs
 symbol = st.sidebar.text_input("Enter Symbol (e.g. RELIANCE.BSE)")
@@ -82,26 +82,34 @@ if st.button("Run Analysis"):
             df['RSI'] = 100 - (100 / (1 + rs))
 
             # ───────────────────────────────────────
-            # PLOTLY SUBPLOT CHART
+            # PLOTLY 3-SUBPLOT CHART
             # ───────────────────────────────────────
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                                subplot_titles=(f"{symbol} Price + SMA/EMA", f"RSI ({rsi_window}-day)"),
+            fig = make_subplots(rows=3, cols=1, shared_xaxes=True,
+                                subplot_titles=(
+                                    f"{symbol} Price + SMA/EMA",
+                                    f"Volatility vs Shock Volatility (Window={vol_window})",
+                                    f"RSI ({rsi_window}-day)"
+                                ),
                                 vertical_spacing=0.08)
 
-            # Price Chart
+            # Row 1: Price + SMA/EMA
             fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name="Close", line=dict(color='white')), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['SMA'], name=f"SMA-{sma_ema_window}", line=dict(color='orange')), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['EMA'], name=f"EMA-{sma_ema_window}", line=dict(color='violet')), row=1, col=1)
 
-            # RSI Chart
-            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color='lime')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=[70]*len(df), name="Overbought (70)", line=dict(color='red', dash='dash')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=[30]*len(df), name="Oversold (30)", line=dict(color='blue', dash='dash')), row=2, col=1)
+            # Row 2: Volatility vs Shock Volatility
+            fig.add_trace(go.Scatter(x=df.index, y=df['volatility'], name="Volatility", line=dict(color='yellow')), row=2, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['rolling_nonfund_vol'], name="Shock Volatility", line=dict(color='red')), row=2, col=1)
+
+            # Row 3: RSI
+            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color='lime')), row=3, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=[70]*len(df), name="Overbought (70)", line=dict(color='red', dash='dash')), row=3, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=[30]*len(df), name="Oversold (30)", line=dict(color='blue', dash='dash')), row=3, col=1)
 
             fig.update_layout(
-                height=850,
+                height=950,
                 template='plotly_dark',
-                title_text=f"Analysis for {symbol} | SMA/EMA={sma_ema_window}, RSI={rsi_window}, Fragility Window={vol_window}",
+                title_text=f"Quant Dashboard for {symbol}",
                 showlegend=True
             )
 
