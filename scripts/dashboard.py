@@ -5,70 +5,31 @@ import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# ---- Streamlit Terminal Theme Settings ----
-st.set_page_config(layout="wide", page_title="QUANT TERMINAL")
+# ─────────────────────────────────────────────
+# STREAMLIT CONFIG
+# ─────────────────────────────────────────────
+st.set_page_config(layout="wide", page_title="Quant Terminal")
+st.title("Market Fragility & Technical Dashboard")
 
-# ---- Force Sidebar to Stay Open ----
-
-# FORCE SIDEBAR TO OPEN ON LOAD
-st.markdown(
-    """
-    <script>
-        window.addEventListener('load', function() {
-            const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-            const toggler = window.parent.document.querySelector('button[title="Hide sidebar"]');
-
-            if (sidebar && toggler && sidebar.offsetWidth === 0) {
-                toggler.click();
-            }
-        });
-    </script>
-    """,
-    unsafe_allow_html=True
-)
-
-
-
-st.markdown("""
-    <style>
-        .reportview-container {
-            background-color: #0d1117;
-            color: white;
-        }
-        .sidebar .sidebar-content {
-            background-color: #161b22;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            color: #00FF41;
-        }
-        .stButton>button {
-            background-color: #00FF41;
-            color: black;
-            font-weight: bold;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown("<h1 style='color:#00FF41;'>Welcome to the TERMINAL</h1>", unsafe_allow_html=True)
-
-# ---- INPUT SECTION (SIDEBAR) ----
-st.sidebar.title("Terminal Controls")
-symbol = st.sidebar.text_input("Symbol (e.g., RELIANCE.BSE)")
+# Sidebar inputs
+symbol = st.sidebar.text_input("Enter Symbol (e.g. RELIANCE.BSE)")
 api_key = '5GOMSQ2O4I9S6YIL'
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2020-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.to_datetime("today"))
-vol_window = st.sidebar.slider("Volatility Window (days)", 5, 30, 14)
-thresh_mult = st.sidebar.slider("Shock Threshold (std dev)", 1.0, 3.0, 2.0, step=0.1)
-rsi_period = st.sidebar.slider("RSI Period", 5, 30, 14)
-sma_period = st.sidebar.slider("SMA Period", 5, 100, 20)
-ema_period = st.sidebar.slider("EMA Period", 5, 100, 20)
+vol_window = st.sidebar.slider("Volatility Window", 5, 30, 14)
+threshold_mult = st.sidebar.slider("Shock Threshold (std dev)", 1.0, 3.0, 2.0, step=0.1)
 
-# ---- DATA FETCH ----
+# ─────────────────────────────────────────────
+# FETCH FUNCTION
+# ─────────────────────────────────────────────
 @st.cache_data
 def fetch_data(symbol, api_key):
-    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=full&apikey={api_key}"
-    response = requests.get(url)
-    data = response.json()
+    url = (
+        f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY"
+        f"&symbol={symbol}&outputsize=full&apikey={api_key}"
+    )
+    r = requests.get(url)
+    data = r.json()
     if "Time Series (Daily)" not in data:
         return None
     df = pd.DataFrame.from_dict(data["Time Series (Daily)"], orient="index")
@@ -78,65 +39,68 @@ def fetch_data(symbol, api_key):
     df.sort_index(inplace=True)
     return df
 
-# ---- RSI CALCULATION ----
-def calculate_rsi(series, period):
-    delta = series.diff()
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.rolling(window=period).mean()
-    avg_loss = loss.rolling(window=period).mean()
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
-
-# ---- RUN ANALYSIS ----
-if st.sidebar.button("Run Analysis"):
-    with st.spinner("Processing live data..."):
+# ─────────────────────────────────────────────
+# MAIN LOGIC
+# ─────────────────────────────────────────────
+if st.button("Run Analysis"):
+    with st.spinner("Crunching numbers..."):
         df = fetch_data(symbol, api_key)
 
         if df is None:
-            st.error("API failed. Check symbol or key.")
+            st.error("Error: Failed to fetch data. Check symbol or API key.")
         else:
+            # Filter date range
             df = df[(df.index >= pd.to_datetime(start_date)) & (df.index <= pd.to_datetime(end_date))]
 
+            # Calculate log return and volatility
             df['log_return'] = np.log(df['Close'] / df['Close'].shift(1))
             df['volatility'] = df['log_return'].rolling(window=vol_window).std()
-            threshold = df['log_return'].std() * thresh_mult
+
+            # Shock Detection
+            threshold = df['log_return'].std() * threshold_mult
             df['shock'] = np.where(abs(df['log_return']) > threshold, 1, 0)
             df['nonfund_vol'] = df['log_return'] * df['shock']
             df['rolling_nonfund_vol'] = df['nonfund_vol'].rolling(window=vol_window).std()
+
+            # Fragility Ratio
             df['fragility_ratio'] = df['rolling_nonfund_vol'] / df['volatility']
 
-            df['RSI'] = calculate_rsi(df['Close'], rsi_period)
-            df['SMA'] = df['Close'].rolling(window=sma_period).mean()
-            df['EMA'] = df['Close'].ewm(span=ema_period, adjust=False).mean()
+            # SMA & EMA
+            df['SMA_20'] = df['Close'].rolling(window=20).mean()
+            df['EMA_20'] = df['Close'].ewm(span=20, adjust=False).mean()
 
-            df['Signal'] = np.where((df['RSI'] < 30) & (df['Close'] > df['SMA']), 'BUY',
-                              np.where((df['RSI'] > 70) & (df['Close'] < df['SMA']), 'SELL', 'HOLD'))
+            # RSI Calculation
+            delta = df['Close'].diff()
+            gain = delta.where(delta > 0, 0)
+            loss = -delta.where(delta < 0, 0)
+            avg_gain = gain.rolling(window=14).mean()
+            avg_loss = loss.rolling(window=14).mean()
+            rs = avg_gain / avg_loss
+            df['RSI'] = 100 - (100 / (1 + rs))
 
-            # ---- CHART ----
-            fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.06,
-                                subplot_titles=("Close Price + SMA/EMA", "Volatility vs Shock Vol", "Fragility Ratio", "RSI"))
+            # ───────────────────────────────────────
+            # PLOTLY CHART
+            # ───────────────────────────────────────
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                subplot_titles=(f"{symbol} Price with SMA & EMA", "RSI (14-day)"),
+                                vertical_spacing=0.08)
 
-            fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name="Close", line=dict(color='#00FF41')), row=1, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['SMA'], name="SMA", line=dict(color='orange')), row=1, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['EMA'], name="EMA", line=dict(color='cyan')), row=1, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['volatility'], name="Volatility", line=dict(color='orange')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['rolling_nonfund_vol'], name="Shock Volatility", line=dict(color='red')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['fragility_ratio'], name="Fragility Ratio", line=dict(color='purple')), row=3, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=[1]*len(df), name="Threshold=1", line=dict(dash='dash', color='gray')), row=3, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color='violet')), row=4, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=[30]*len(df), name="RSI=30", line=dict(dash='dash', color='green')), row=4, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=[70]*len(df), name="RSI=70", line=dict(dash='dash', color='red')), row=4, col=1)
+            # Row 1: Price + SMA/EMA
+            fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name="Close", line=dict(color='white')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], name="SMA 20", line=dict(color='orange')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA_20'], name="EMA 20", line=dict(color='violet')), row=1, col=1)
 
-            fig.update_layout(height=1000, paper_bgcolor='#0d1117', plot_bgcolor='#0d1117', font_color='white')
+            # Row 2: RSI
+            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color='lime')), row=2, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=[70]*len(df), name="Overbought", line=dict(color='red', dash='dash')), row=2, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=[30]*len(df), name="Oversold", line=dict(color='blue', dash='dash')), row=2, col=1)
 
-            st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(
+                height=800,
+                template='plotly_dark',
+                showlegend=True,
+                title_text=f"📈 Market Dashboard for {symbol}",
+                xaxis_rangeslider_visible=False
+            )
 
-            df.to_csv(f"fragility_{symbol.replace('.', '_')}.csv")
-            st.success("✅ Terminal run complete. Data saved locally.")
-
-            # ---- SIGNAL SNAPSHOT ----
-            st.markdown("<h3 style='color:#00FF41;'>📌 Trading Signal Summary</h3>", unsafe_allow_html=True)
-            last_signal = df['Signal'].iloc[-1]
-            st.markdown(f"<h4 style='color:yellow;'>Signal: <span style='color:#00FF41;'>{last_signal}</span></h4>", unsafe_allow_html=True)
+            st.plotly
