@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import io
 
+
 # ─────────────────────────────────────────────
 # STREAMLIT CONFIG
 # ─────────────────────────────────────────────
@@ -13,7 +14,7 @@ st.set_page_config(layout="wide", page_title="Quant Terminal")
 st.title("Welcome to the Terminal..")
 
 # Sidebar inputs
-symbol = st.sidebar.text_input("Enter Symbol (e.g. RELIANCE.BSE)")
+symbol = st.sidebar.text_input("Enter Symbol (e.g. RELIANCE.BSE)").upper()
 api_key = '5GOMSQ2O4I9S6YIL'
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2020-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.to_datetime("today"))
@@ -96,22 +97,104 @@ if st.button("Run Analysis"):
                     df['signal'].iloc[i] = 'SELL'
 
             # ─────────────────────────────────────────────
+            # BACKTEST ENGINE - TRADE LOGIC
+            # ─────────────────────────────────────────────
+            initial_capital = 100000
+            capital = initial_capital
+            position = 0
+            entry_price = 0
+            shares = 0
+            trade_log = []
+
+            for i in range(len(df)):
+                signal = df['signal'].iloc[i]
+                price = df['Close'].iloc[i]
+                date = df.index[i]
+
+                if signal == 'BUY' and position == 0:
+                    shares = capital // price  # Use full capital
+                    entry_price = price
+                    entry_date = date
+                    position = 1
+
+                elif signal == 'SELL' and position == 1:
+                    exit_price = price
+                    exit_date = date
+                    pnl = (exit_price - entry_price) * shares
+                    capital = shares * exit_price  # Update capital after selling all
+                    trade_log.append({
+                        'Entry Date': entry_date,
+                        'Exit Date': exit_date,
+                        'Entry Price': entry_price,
+                        'Exit Price': exit_price,
+                        'Shares': shares,
+                        'PnL': pnl,
+                        'Capital After Trade': capital
+                    })
+                    position = 0
+                    entry_price = 0
+                    shares = 0
+
+            # ─────────────────────────────────────────────
             # SIGNAL SUMMARY MESSAGES
             # ─────────────────────────────────────────────
+
+            # Show trade summary
+            # Show backtest trade log if trades exist
+            if trade_log:
+                trade_df = pd.DataFrame(trade_log)
+
+                st.subheader("📋 Backtest Trade Log")
+                st.dataframe(trade_df[[
+                    'Entry Date', 'Exit Date', 'Shares',
+                    'Entry Price', 'Exit Price', 'PnL', 'Capital After Trade'
+                ]])
+
+                # Performance metrics
+                st.metric("Initial Capital", f"₹{initial_capital:,.2f}")
+
+                total_pnl = trade_df['PnL'].sum()
+                final_capital = trade_df['Capital After Trade'].iloc[-1]
+                capital_series = [initial_capital] + list(trade_df['Capital After Trade'])
+
+                # Equity curve
+                st.subheader("📈 Equity Curve")
+                fig_eq = go.Figure()
+                fig_eq.add_trace(go.Scatter(
+                    x=list(range(len(capital_series))),
+                    y=capital_series,
+                    mode='lines+markers',
+                    name='Equity Curve',
+                    line=dict(color='deepskyblue')
+                ))
+                fig_eq.update_layout(
+                    xaxis_title='Trade #',
+                    yaxis_title='Capital',
+                    template='plotly_dark',
+                    height=400
+                )
+                st.plotly_chart(fig_eq, use_container_width=True)
+
+                # Metrics
+                st.metric("💰 Total Profit/Loss", f"₹{total_pnl:.2f}")
+                st.metric("📈 Final Capital", f"₹{final_capital:.2f}")
+
+            else:
+                st.warning("📉 No complete BUY → SELL trades were executed during this period.")
 
             # Count non-HOLD signals
             num_signals = df[df['signal'] != 'HOLD'].shape[0]
 
             # Display latest signal
             last_signal = df['signal'].iloc[-1]
-            st.info(f"📈 **Latest Signal:** `{last_signal}` as of {df.index[-1].strftime('%d-%b-%Y')}")
+            st.info(f"**Latest Signal:** `{last_signal}` as of {df.index[-1].strftime('%d-%b-%Y')}")
 
             # If no actionable signals, show hold warning
             if num_signals == 0:
                 st.warning(
-                    "🟡 No BUY or SELL signals were generated in the selected period.\n\nMarket might be calm, trending, or not volatile enough.\n\n**Suggested Action: HOLD or adjust strategy parameters.**")
+                    "No BUY or SELL signals were generated in the selected period.\n\nMarket might be calm, trending, or not volatile enough.\n\n**Suggested Action: HOLD or adjust strategy parameters.**")
             else:
-                st.success(f"✅ {num_signals} signals generated. Scroll down to view them on the chart.")
+                st.success(f"{num_signals} signals generated. Scroll down to view them on the chart.")
 
             # ───────────────────────────────────────
             # PLOTLY 3-SUBPLOT CHART
