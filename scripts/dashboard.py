@@ -77,19 +77,28 @@ if st.button("Run Analysis"):
                 model_path = os.path.join(os.path.dirname(__file__), "trained_model_v1.joblib")
                 model = joblib.load(model_path)
 
-                latest_features = df.iloc[-1].to_dict()
+                latest_df = generate_features(df.copy())
+                latest_features = latest_df.iloc[-1].to_dict()
 
-                for col in ['Label', 'Close', 'Open', 'High', 'Low', 'Volume']:
+                for col in ['Label', 'Close', 'Open', 'High', 'Low', 'Volume', 'log_return']:
                     latest_features.pop(col, None)
 
                 prediction = model.predict_one(latest_features)
+                proba = model.predict_proba_one(latest_features)
 
-                if prediction == 1:
-                    st.success("📈 The model predicts a **BUY** signal.")
-                elif prediction == 0:
-                    st.error("📉 The model predicts a **SELL** signal.")
+                confidence = proba.get(prediction, 0) * 100  # confidence in %
+
+                # Apply threshold logic
+                if confidence < 40:
+                    st.warning(f"⚠️ Signal confidence is too low ({confidence:.2f}%). Defaulting to **HOLD**.")
+                    st.info("🟡 Suggested Action: HOLD")
                 else:
-                    st.info("The model suggests a **HOLD**.")
+                    if prediction == "BUY":
+                        st.success(f"📈 **BUY** Signal with {confidence:.2f}% confidence")
+                    elif prediction == "SELL":
+                        st.error(f"📉 **SELL** Signal with {confidence:.2f}% confidence")
+                    else:
+                        st.info(f"🟡 HOLD Signal with {confidence:.2f}% confidence")
 
             except Exception as e:
                 st.warning(f"⚠️ Could not make ML prediction: {e}")
