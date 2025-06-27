@@ -9,6 +9,11 @@ def generate_features(df,
     # ───── Technical Indicators ─────
     df['log_return'] = np.log(df['Close'] / df['Close'].shift(1))
     df['volatility'] = df['log_return'].rolling(window=vol_window).std()
+    # Shock and nonfundamental volatility
+    threshold = df['log_return'].std()
+    df['shock'] = np.where(abs(df['log_return']) > threshold, 1, 0)
+    df['non-fund_vol'] = df['log_return'] * df['shock']
+    df['rolling_non-fund_vol'] = df['non-fund_vol'].rolling(window=vol_window).std()
 
     delta = df['Close'].diff()
     gain = delta.where(delta > 0, 0)
@@ -35,9 +40,14 @@ def generate_features(df,
     df['MACD_Signal'] = df['MACD'].ewm(span=macd_signal, adjust=False).mean()
 
     # ───── Fragility & Volatility Zones ─────
-    df['fragility_ratio'] = np.random.normal(loc=1.0, scale=0.1, size=len(df))  # Replace later with real logic
+    df['fragility_ratio'] = df['rolling_non-fund_vol'] / (df['volatility'] + 1e-8)
+
     df['Fragile_Zone'] = np.where(df['fragility_ratio'] > 1.2, 1, 0)
     df['Low_Vol_Zone'] = np.where(df['volatility'] < 0.015, 1, 0)
+    df['shock'] = np.where(abs(df['log_return']) > df['log_return'].std(), 1, 0)
+    df['non-fund_vol'] = df['log_return'] * df['shock']
+    df['rolling_non-fund_vol'] = df['non-fund_vol'].rolling(window=14).std()
+    df['fragility_ratio'] = df['rolling_non-fund_vol'] / (df['volatility'] + 1e-8)
 
     # ───── Signal Strength & Labeling ─────
     df['Signal_Strength'] = 0
