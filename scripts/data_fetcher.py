@@ -52,7 +52,7 @@ def fetch_alpha_vantage_data(symbol, api_key):
 if __name__ == "__main__":
     # Get user input for stock symbol and API key
     symbol = input("Enter the stock symbol (e.g., TCS.BSE or RELIANCE.BSE): ").upper()
-    api_key = input("Enter your Alpha Vantage API key: ")
+    api_key = 'J3Z6VNICGJYOXTOD'
 
     # Fetch the data and display the first few rows
     df = fetch_alpha_vantage_data(symbol, api_key)
