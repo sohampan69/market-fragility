@@ -1,32 +1,36 @@
 import os
 import pandas as pd
-from river import linear_model, preprocessing, metrics, compose, optim
+from river import tree, preprocessing, compose , metrics
+
+
+
+
 import joblib
 
 # ─────────── Configuration ───────────
 DATA_DIR = "data"
-MODEL_PATH = "trained_model_v1.joblib"
+MODEL_PATH = "trained_model_v3.joblib"
 LOG_PATH = "prediction_log.csv"
 
 # Label mappings
 label_mapping = {'BUY': 1, 'SELL': 0, 'HOLD': 2}
 reverse_mapping = {v: k for k, v in label_mapping.items()}
 
-# ─────────── Model Setup ───────────
+
+
 model = compose.Pipeline(
     preprocessing.StandardScaler(),
-    linear_model.SoftmaxRegression(
-        optimizer=optim.SGD(lr=0.01),
-        l2=0.1
-    )
+    tree.HoeffdingTreeClassifier()
 )
+
+
 metric = metrics.Accuracy()
 prediction_log = []
 
 total_rows = 0
 correct_preds = 0
 
-print("🔄 Starting training...")
+print("🔄 Started training. Go grab some coffee...")
 
 # ─────────── Data Loop ───────────
 files = [f for f in os.listdir(DATA_DIR) if f.startswith("features_") and f.endswith(".csv")]
