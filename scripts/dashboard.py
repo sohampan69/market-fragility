@@ -25,7 +25,7 @@ st.title("Your Terminal...")
 
 # Sidebar Inputs
 symbol = st.sidebar.text_input("Enter Symbol (e.g. RELIANCE.BSE)").upper()
-api_key = '5GOMSQ2O4I9S6YIL'
+api_key = 'J3Z6VNICGJYOXTOD'
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2010-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.to_datetime("today"))
 
@@ -74,7 +74,7 @@ if st.button("Run Analysis"):
             try:
                 st.subheader("🤖 AI Model Prediction")
 
-                model_path = os.path.join(os.path.dirname(__file__), "trained_model_v1.joblib")
+                model_path = os.path.join(os.path.dirname(__file__), "trained_model_full_v1.joblib")
                 model = joblib.load(model_path)
 
                 latest_df = generate_features(df.copy())
@@ -87,6 +87,7 @@ if st.button("Run Analysis"):
                 proba = model.predict_proba_one(latest_features)
 
                 confidence = proba.get(prediction, 0) * 100  # confidence in %
+                #st.write("latest_features used for prediction: ", latest_features)
 
                 # Apply threshold logic
                 if confidence < 40:
@@ -234,3 +235,4 @@ if st.button("Run Analysis"):
                 file_name=f"fragility_{symbol.replace('.', '_')}.csv",
                 mime="text/csv"
             )
+
