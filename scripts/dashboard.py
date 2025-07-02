@@ -196,32 +196,107 @@ if st.button("Run Analysis"):
             # Price Chart
             # ────────────────────────────────────────
             st.subheader("📊 Price Chart with Signals")
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                                vertical_spacing=0.08,
-                                subplot_titles=[f"{symbol} Price Chart", "RSI + MACD + Volatility"])
+            fig = make_subplots(
+                rows=4, cols=1, shared_xaxes=True,
+                vertical_spacing=0.06,
+                subplot_titles=(
+                    f"{symbol} Price + SMA/EMA + BB",
+                    "Volatility vs Shock Volatility",
+                    f"RSI ({rsi_window}-day)",
+                    "MACD"
+                )
+            )
 
-            # Row 1: Price & Signals
+            # Row 1: Price + SMA/EMA + Bollinger
             fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name="Close", line=dict(color='white')), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['SMA'], name="SMA", line=dict(color='orange')), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['EMA'], name="EMA", line=dict(color='violet')), row=1, col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=df['BB_Upper'], name="BB Upper", line=dict(color='gray', dash='dot')), row=1,
+                col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=df['BB_Lower'], name="BB Lower", line=dict(color='gray', dash='dot')), row=1,
+                col=1)
 
-            buy_signals = df[df['Label'] == 'BUY']
-            sell_signals = df[df['Label'] == 'SELL']
+            # Buy/Sell markers
+            buy_signals = df[df['signal'] == 'BUY']
+            sell_signals = df[df['signal'] == 'SELL']
+            fig.add_trace(go.Scatter(
+                x=buy_signals.index, y=buy_signals['Close'],
+                mode='markers', name='BUY Signal',
+                marker=dict(color='green', size=10, symbol='triangle-up')
+            ), row=1, col=1)
+            fig.add_trace(go.Scatter(
+                x=sell_signals.index, y=sell_signals['Close'],
+                mode='markers', name='SELL Signal',
+                marker=dict(color='red', size=10, symbol='triangle-down')
+            ), row=1, col=1)
 
-            fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'], mode='markers',
-                                     name="BUY", marker=dict(symbol='triangle-up', color='green', size=10)),
-                          row=1, col=1)
-            fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'], mode='markers',
-                                     name="SELL", marker=dict(symbol='triangle-down', color='red', size=10)),
-                          row=1, col=1)
+            fig = make_subplots(
+                rows=4, cols=1, shared_xaxes=True,
+                vertical_spacing=0.06,
+                subplot_titles=(
+                    f"{symbol} Price + SMA/EMA + BB",
+                    "Volatility vs Shock Volatility",
+                    f"RSI ({rsi_window}-day)",
+                    "MACD"
+                )
+            )
 
-            # Row 2: RSI + MACD + Volatility
-            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color='lime')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['MACD'], name="MACD", line=dict(color='aqua')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['MACD_Signal'], name="MACD Signal", line=dict(color='magenta')), row=2, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['volatility'], name="Volatility", line=dict(color='yellow')), row=2, col=1)
+            # Row 1: Price + SMA/EMA + BB
+            fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name="Close", line=dict(color='white')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['SMA'], name="SMA", line=dict(color='orange')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['EMA'], name="EMA", line=dict(color='violet')), row=1, col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=df['BB_Upper'], name="BB Upper", line=dict(color='gray', dash='dot')), row=1,
+                col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=df['BB_Lower'], name="BB Lower", line=dict(color='gray', dash='dot')), row=1,
+                col=1)
 
-            fig.update_layout(height=800, template="plotly_dark", showlegend=True)
+            # Buy/Sell markers
+            buy_signals = df[df['signal'] == 'BUY']
+            sell_signals = df[df['signal'] == 'SELL']
+            fig.add_trace(go.Scatter(
+                x=buy_signals.index, y=buy_signals['Close'],
+                mode='markers', name='BUY Signal',
+                marker=dict(color='green', size=10, symbol='triangle-up')
+            ), row=1, col=1)
+            fig.add_trace(go.Scatter(
+                x=sell_signals.index, y=sell_signals['Close'],
+                mode='markers', name='SELL Signal',
+                marker=dict(color='red', size=10, symbol='triangle-down')
+            ), row=1, col=1)
+
+            # Row 2: Volatility vs Non-Fund Volatility
+            fig.add_trace(go.Scatter(x=df.index, y=df['volatility'], name="Volatility", line=dict(color='yellow')),
+                          row=2, col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=df['rolling_non-fund_vol'], name="Shock Volatility", line=dict(color='red')),
+                row=2, col=1)
+
+            # Row 3: RSI
+            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], name="RSI", line=dict(color='lime')), row=3, col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=[70] * len(df), name="Overbought (70)", line=dict(color='red', dash='dash')),
+                row=3, col=1)
+            fig.add_trace(
+                go.Scatter(x=df.index, y=[30] * len(df), name="Oversold (30)", line=dict(color='blue', dash='dash')),
+                row=3, col=1)
+
+            # Row 4: MACD + Signal line (no histogram)
+            fig.add_trace(go.Scatter(x=df.index, y=df['MACD'], name="MACD", line=dict(color='aqua')), row=4, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['MACD_Signal'], name="MACD Signal", line=dict(color='magenta')),
+                          row=4, col=1)
+
+            # Layout
+            fig.update_layout(
+                height=1300,
+                template='plotly_dark',
+                title_text=f"Quant Dashboard for {symbol}",
+                showlegend=True
+            )
+
             st.plotly_chart(fig, use_container_width=True)
 
             # ────────────────────────────────────────
