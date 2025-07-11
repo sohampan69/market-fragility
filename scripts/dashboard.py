@@ -25,7 +25,7 @@ st.title("Your Terminal...")
 
 # Sidebar Inputs
 symbol = st.sidebar.text_input("Enter Symbol (e.g. RELIANCE.BSE)").upper()
-api_key = 'J3Z6VNICGJYOXTOD'
+api_key = 'SDIQBWBXP3O9KQ9W'
 start_date = st.sidebar.date_input("Start Date", pd.to_datetime("2010-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.to_datetime("today"))
 
